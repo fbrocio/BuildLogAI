@@ -1,6 +1,7 @@
 package com.example.demo.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -21,7 +22,8 @@ public class UserInput {
     @Column(name = "source", length = 20)
     private String source;
 
-    @Column(name = "created_at")
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @OneToMany(mappedBy = "sourceInput", cascade = CascadeType.ALL)

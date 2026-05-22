@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -41,8 +42,9 @@ public class Record {
     @Column(name = "related_record_id")
     private Long relatedRecordId;
 
-    @Column(name = "created_at", insertable = false, updatable = false)
-    private LocalDateTime createdAt; //Lo gestiona la BD (DEFAULT CURRENT_TIMESTAMP)
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
 
     @ManyToOne
     @JsonIgnore

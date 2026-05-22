@@ -12,6 +12,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 
@@ -29,7 +31,7 @@ public class AIService {
         this.objectMapper = objectMapper;
     }
 
-    // ✅ MÉTODO PRINCIPAL (usa AIResponse correctamente)
+    // MÉTODO PRINCIPAL (usa AIResponse correctamente)
     public List<Record> generateRecordsFromText(String text, Long projectId) {
 
         AIResponse aiResponse = processAIResponse(text);
@@ -39,19 +41,37 @@ public class AIService {
 
             record.setTitle(dto.getTitle());
             record.setDescription(dto.getDescription());
-            record.setType(parseType(dto.getType()));
-            record.setStatus(parseStatus(dto.getStatus()));
+            record.setType(dto.getType());
+            record.setStatus(dto.getStatus());
             record.setProjectId(projectId);
+            record.setStructuredData(
+
+                    objectMapper.convertValue(
+                            dto.getStructuredData(),
+                            Map.class
+                    )
+            );
 
             return record;
         }).toList();
     }
 
-    // ✅ ORQUESTADOR (este es el importante)
+
+    //
+    public String generateReport(
+            String topic,
+            String markdown
+    ){
+        String prompt = buildReportPrompt(topic, markdown);
+        return callGemini(prompt);
+    }
+
+    // ORQUESTADOR
     public AIResponse processAIResponse(String text) {
 
         try {
-            String rawResponse = callAI(text);
+            String prompt =buildRecordPrompt(text);
+            String rawResponse = callGemini(prompt);
             System.out.println("RAW IA:\n" + rawResponse);   // ← clave
 
             String clean = cleanJson(rawResponse);
@@ -69,14 +89,12 @@ public class AIService {
     }
 
     // ✅ SOLO llamada HTTP → devuelve String
-    private String callAI(String text) {
+    private String callGemini(String prompt) {
 
         String[] models = {
                 "gemini-2.5-flash",   // principal
                 "gemini-1.5-flash"    // fallback
         };
-
-        String prompt = buildPrompt(text);
 
         var requestBody = Map.of(
                 "contents", List.of(
@@ -123,12 +141,42 @@ public class AIService {
     }
 
     private String extractText(Map body) {
+
+        if (body == null) {
+            throw new RuntimeException("Body nulo");
+        }
+
         List candidates = (List) body.get("candidates");
+
+        if (candidates == null || candidates.isEmpty()) {
+            throw new RuntimeException(
+                    "Gemini no devolvió candidates: " + body
+            );
+        }
+
         Map firstCandidate = (Map) candidates.get(0);
+
         Map content = (Map) firstCandidate.get("content");
+
         List parts = (List) content.get("parts");
 
         return (String) ((Map) parts.get(0)).get("text");
+    }
+
+    private String buildRecordsContext(List<Record> records){
+        StringBuilder sb = new StringBuilder();
+        for (Record r : records) {
+            sb.append("""
+        TITULO: %s
+        DESCRIPCION: %s
+        TIPO: %s
+        """.formatted(
+                r.getTitle(),
+                r.getDescription(),
+                r.getType()
+            ));
+        }
+        return sb.toString();
     }
 
     private String cleanJson(String raw) {
@@ -164,14 +212,102 @@ public class AIService {
                 throw new RuntimeException("Campos obligatorios vacíos");
             }
 
-            parseType(r.getType());
-            parseStatus(r.getStatus());
+            if (r.getType() == null) {
+                throw new RuntimeException("Type inválido");
+            }
+
+            if (r.getStatus() == null) {
+                throw new RuntimeException("Status inválido");
+            }
         }
     }
 
-    private String buildPrompt(String text) {
+    private String buildRecordPrompt(String text) {
         return  """
 Eres un sistema que transforma texto en JSON estructurado.
+
+OBLIGATORIO:
+- Devuelve SOLO JSON válido
+- NO escribas texto adicional
+- NO expliques nada
+- NO hagas sugerencias
+- NO añadas frases como "Aquí tienes"
+- Si no puedes generar JSON, devuelve EXACTAMENTE: {}
+
+FORMATO:
+{
+  "records": [
+    {
+      "title": "string",
+      "description": "string",
+      "type": "PENDIENTE | INCIDENCIA | AVANCE",
+      "status": "ABIERTA | CERRADA",
+      "structuredData": {
+        "company": "string",
+        "subject": "string",
+        "quantity": number,
+        "unit": "string",
+        "due_date": "YYYY-MM-DD",
+        "percentage": number,
+        "price": number
+      }
+    }
+  ]
+}
+
+REGLAS:
+- Si hay varias acciones o eventos distintos, crea varios records
+- No inventes datos
+- status = ABIERTA por defecto
+- structuredData es OPCIONAL
+- Solo incluir campos útiles y claramente detectables
+- NO incluir claves vacías ni valores null
+- NO repetir información innecesaria ya presente en title o description
+- company debe contener nombres de empresas, proveedores o fabricantes
+- subject debe ser un asunto corto y operativo
+- quantity debe ser un número
+- unit debe ser una unidad breve: uds, m2, ml, kg, etc.
+- due_date debe usar formato YYYY-MM-DD
+- percentage debe ser un número entre 0 y 100
+- price debe ser un número sin símbolo de moneda
+- Si no hay datos estructurados útiles, devolver {}
+
+EJEMPLO:
+
+Entrada:
+"Han llegado rotas 5 luminarias de ArkosLight. Pedir reposición antes del viernes."
+
+Salida:
+{
+  "records": [
+    {
+      "title": "Recepción de luminarias defectuosas",
+      "description": "Han llegado 5 luminarias rotas de ArkosLight",
+      "type": "INCIDENCIA",
+      "status": "ABIERTA",
+      "structuredData": {
+        "company": "ArkosLight",
+        "quantity": 5,
+        "unit": "uds",
+        "subject": "Luminarias defectuosas"
+      }
+    },
+    {
+      "title": "Solicitar reposición de luminarias",
+      "description": "Pedir reposición de luminarias a ArkosLight antes del viernes",
+      "type": "PENDIENTE",
+      "status": "ABIERTA",
+      "structuredData": {
+        "company": "ArkosLight",
+        "subject": "Reposición de luminarias"
+      }
+    }
+  ]
+}
+
+TEXTO:
+""" + text;
+/*Eres un sistema que transforma texto en JSON estructurado.
 
 OBLIGATORIO:
 - Devuelve SOLO JSON válido
@@ -254,9 +390,49 @@ Salida:
 }
 
 TEXTO:
-"""  + text;
+""" */
     }
 
+    private String buildReportPrompt(
+            String topic,
+            String markdown
+
+    ) {
+        String date = LocalDate.now().format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
+        return """
+                Genera un informe técnico profesional de obra.
+                
+                TEMATICA:
+                %s
+                
+                REGISTROS:
+                %s
+                
+                FECHA DEL INFORME:
+                %s
+                
+                ESTRUCTURA:
+                1. Resumen ejecutivo
+                2. Trabajos realizados
+                3. Incidencias detectadas
+                4. Estado actual
+                5. Recomendaciones
+                
+                REGLAS:
+                - Devuelve el informe en Markdown valido
+                - Usa # para el titulo principal, ## para secciones y listas Markdown cuando corresponda
+                - Usa tono técnico
+                - No inventes información
+                - Usa únicamente los registros proporcionados
+                - No añadas información no presente en los registros
+                - No hagas suposiciones
+                - Usa lenguaje técnico simple y directo
+                - Evita frases genéricas o excesivamente corporativas
+                - Si falta información, indícalo explícitamente
+                """
+                .formatted(topic, markdown, date);
+
+    }
     private RecordType parseType(String value) {
         try {
             return RecordType.valueOf(value.toUpperCase());

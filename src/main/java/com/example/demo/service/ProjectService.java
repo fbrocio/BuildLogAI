@@ -20,20 +20,49 @@ public class ProjectService {
     @Autowired
     private UserRepository userRepository;
 
-    public Project createProject(ProjectRequest request) {
-        User user = userRepository.findById(request.getCreatedBy()).
+    public Project createProject(ProjectRequest request, Long userId) {
+        User user = userRepository.findById(userId).
                 orElseThrow(()-> new RuntimeException("User not found"));
 
         Project project = new Project();
         project.setName(request.getName());
         project.setDescription(request.getDescription());
-        project.setUser(user);
+        project.setCreatedBy(user);
         project.setCreatedAt(LocalDateTime.now());
+
+        project.getUsers().add(user);
 
         return projectRepository.save(project);
     }
 
     public List<Project> getAllProjects() {
         return projectRepository.findAll();
+    }
+
+    public List<Project> getProjectsByUser(Long userId){
+        return projectRepository.findByUsers_Id(userId);
+    }
+
+    public void addUserToProject(
+            Long projectId,
+            Long userId
+    ) {
+
+        Project project = projectRepository
+                .findById(projectId)
+                .orElseThrow();
+
+        User user = userRepository
+                .findById(userId)
+                .orElseThrow();
+
+        // evitar duplicados
+
+        if (!project.getUsers().contains(user)) {
+
+            project.getUsers().add(user);
+
+            projectRepository.save(project);
+        }
     }
 }

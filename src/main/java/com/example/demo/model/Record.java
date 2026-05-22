@@ -1,11 +1,14 @@
 package com.example.demo.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 @Entity
@@ -31,8 +34,9 @@ public class Record {
     @Column(name = "project_id")
     private Long projectId;
 
-    @Column(name = "created_by")
-    private Long createdBy;
+    @ManyToOne
+    @JoinColumn(name = "created_by")
+    private User createdBy;
 
     @Column(name = "related_record_id")
     private Long relatedRecordId;
@@ -41,12 +45,21 @@ public class Record {
     private LocalDateTime createdAt; //Lo gestiona la BD (DEFAULT CURRENT_TIMESTAMP)
 
     @ManyToOne
+    @JsonIgnore
     @JoinColumn(name = "source_input_id")
     private UserInput sourceInput;
 
     @Column(name = "structured_data", columnDefinition = "json")
     @JdbcTypeCode(SqlTypes.JSON)
     private Map<String, Object> structuredData;
+
+    @OneToMany(
+            mappedBy = "record",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true, //Hibernate borrará automáticamente las imágenes que se eliminen de la lista
+            fetch = FetchType.EAGER)
+    @JsonManagedReference
+    private List<RecordImage> images;
 
     public Record() {}
 
@@ -76,7 +89,7 @@ public class Record {
         return projectId;
     }
 
-    public Long getCreatedBy() {
+    public User getCreatedBy() {
         return createdBy;
     }
 
@@ -95,6 +108,9 @@ public class Record {
         return structuredData;
     }
 
+    public List<RecordImage> getImages() {
+        return images;
+    }
     // SETTERS
 
     public void setId(Long id) {
@@ -121,7 +137,7 @@ public class Record {
         this.projectId = projectId;
     }
 
-    public void setCreatedBy(Long createdBy) {
+    public void setCreatedBy(User createdBy) {
         this.createdBy = createdBy;
     }
 
@@ -138,5 +154,8 @@ public class Record {
 
     public void setStructuredData(Map<String, Object> structuredData) {
         this.structuredData = structuredData;
+    }
+    public void setImages(List<RecordImage> images){
+        this.images = images;
     }
 }

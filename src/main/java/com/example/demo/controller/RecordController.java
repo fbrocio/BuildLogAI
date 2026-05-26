@@ -1,6 +1,7 @@
 package com.example.demo.controller;
 
 import com.example.demo.dto.ConfirmRequest;
+import com.example.demo.dto.ImageResponse;
 import com.example.demo.dto.ParseRequest;
 import com.example.demo.dto.RecordDTO;
 import com.example.demo.exception.ResourceNotFoundException;
@@ -11,6 +12,7 @@ import com.example.demo.repository.RecordImageRepository;
 import com.example.demo.repository.RecordRepository;
 import com.example.demo.repository.UserRepository;
 import com.example.demo.service.AIService;
+import com.example.demo.service.CloudinaryService;
 import com.example.demo.service.FileStorageService;
 import com.example.demo.service.RecordService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.awt.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +44,7 @@ public class RecordController {
     private final RecordImageRepository recordImageRepository;
     private final FileStorageService fileStorageService;
     private final UserRepository userRepository;
+    private final CloudinaryService cloudinaryService;
 
     public RecordController(
             RecordRepository repository,
@@ -48,13 +52,15 @@ public class RecordController {
             AIService AIService,
             RecordImageRepository recordImageRepository,
             FileStorageService fileStorageService,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            CloudinaryService cloudinaryService) {
         this.repository = repository;
         this.recordService = recordService;
         this.AIService = AIService;
         this.recordImageRepository = recordImageRepository;
         this.fileStorageService = fileStorageService;
         this.userRepository = userRepository;
+        this.cloudinaryService = cloudinaryService;
     }
 
     @PostMapping
@@ -183,7 +189,7 @@ public class RecordController {
                 .body(savedImage);
     }*/
 
-    @PostMapping("/{id}/images")
+    /*@PostMapping("/{id}/images")
     public ResponseEntity<?> addImage(
             @PathVariable Long id,
             @RequestParam("image") MultipartFile image
@@ -228,6 +234,81 @@ public class RecordController {
             return ResponseEntity
                     .status(HttpStatus.CREATED)
                     .body(savedImage);
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(e.getMessage());
+        }
+    }*/
+    @PostMapping("/{id}/images")
+    public ResponseEntity<?> addImage(
+            @PathVariable Long id,
+            @RequestParam("image") MultipartFile image
+    ) {
+
+        try {
+
+            // Buscar record
+
+            Record record = repository.findById(id)
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "Record not found"
+                            ));
+            if (image.isEmpty()) {
+                throw new RuntimeException("Image is empty");
+            }
+
+            String contentType = image.getContentType();
+
+            if (contentType == null ||
+                    !contentType.startsWith("image/")) {
+
+                throw new RuntimeException("Invalid file type");
+            }
+
+            if (image.getSize() > 10 * 1024 * 1024) {
+                throw new RuntimeException("File too large");
+            }
+
+            System.out.println("RECORD OK");
+
+            // Subir imagen a Cloudinary
+
+            String imageUrl =
+                    cloudinaryService.uploadFile(image);
+
+            System.out.println("IMAGE UPLOADED: " + imageUrl);
+
+            // Crear entidad
+
+            RecordImage recordImage = new RecordImage();
+
+            recordImage.setRecord(record);
+
+            recordImage.setImageUrl(imageUrl);
+
+            System.out.println("ENTITY CREATED");
+
+            // Guardar en PostgreSQL
+
+            RecordImage savedImage =
+                    recordImageRepository.save(recordImage);
+
+            System.out.println("DB SAVED");
+
+            ImageResponse response = new ImageResponse(
+                    savedImage.getId(),
+                    savedImage.getImageUrl()
+            );
+
+            return ResponseEntity
+                    .status(HttpStatus.CREATED)
+                    .body(response);
 
         } catch (Exception e) {
 

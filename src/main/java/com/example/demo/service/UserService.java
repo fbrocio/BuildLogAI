@@ -125,9 +125,13 @@ public class UserService {
 
     public void resendVerificationCode(String email) {
 
+        System.out.println("PASO 1");
+
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() ->
                         new RuntimeException("Usuario no encontrado"));
+
+        System.out.println("PASO 2");
 
         String code = String.format(
                 "%06d",
@@ -138,11 +142,14 @@ public class UserService {
 
         userRepository.save(user);
 
+        System.out.println("PASO 3");
+
         emailService.sendEmail(
                 user.getEmail(),
                 "Código de verificación BuildLogAI",
-                "Tu nuevo código de verificación es: "
-                        + code
+                "Tu nuevo código de verificación es: " + code
         );
+
+        System.out.println("PASO 4");
     }
 }

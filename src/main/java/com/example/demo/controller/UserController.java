@@ -88,7 +88,7 @@ public class UserController {
 
         return ResponseEntity.ok("Código reenviado");
     }*/
-    @PostMapping("/resend-verification")
+    /*@PostMapping("/resend-verification")
     public ResponseEntity<String> resendVerification(
             @RequestParam String email) {
 
@@ -97,6 +97,28 @@ public class UserController {
         userService.resendVerificationCode(email);
 
         return ResponseEntity.ok("Código reenviado");
+    }*/
+    @PostMapping("/resend-verification")
+    public ResponseEntity<String> resendVerification(
+            @RequestParam String email) {
+
+        try {
+
+            System.out.println("CONTROLLER - Email recibido: [" + email + "]");
+
+            userService.resendVerificationCode(email);
+
+            System.out.println("CONTROLLER - FIN OK");
+
+            return ResponseEntity.ok("Código reenviado");
+
+        } catch (Exception e) {
+
+            System.out.println("CONTROLLER ERROR:");
+            e.printStackTrace();
+
+            throw e;
+        }
     }
 
 }

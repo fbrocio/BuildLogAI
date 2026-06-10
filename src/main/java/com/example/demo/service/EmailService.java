@@ -15,12 +15,18 @@ public class EmailService {
 
     public void sendEmail(String to, String subject, String text) {
 
+        System.out.println("EMAIL SERVICE INICIO");
+
         SimpleMailMessage message = new SimpleMailMessage();
 
         message.setTo(to);
         message.setSubject(subject);
         message.setText(text);
 
+        System.out.println("ANTES DE SEND");
+
         mailSender.send(message);
+
+        System.out.println("DESPUES DE SEND");
     }
 }

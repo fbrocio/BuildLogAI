@@ -317,38 +317,55 @@ TEXTO:
     ) {
         String date = LocalDate.now().format(DateTimeFormatter.ofPattern("dd-MM-yyyy"));
         return """
-                Genera un informe técnico profesional de obra.
-                
-                TEMATICA:
-                %s
-                
-                REGISTROS:
-                %s
-                
-                FECHA DEL INFORME:
-                %s
-                
-                ESTRUCTURA:
-                1. Resumen ejecutivo
-                2. Trabajos realizados
-                3. Incidencias detectadas
-                4. Estado actual
-                5. Recomendaciones
-                
-                REGLAS:
-                - Devuelve el informe en Markdown valido
-                - Usa # para el titulo principal, ## para secciones y listas Markdown cuando corresponda
-                - Usa tono técnico
-                - No inventes información
-                - Usa únicamente los registros proporcionados
-                - No añadas información no presente en los registros
-                - No hagas suposiciones
-                - Usa lenguaje técnico simple y directo
-                - Evita frases genéricas o excesivamente corporativas
-                - Si falta información, indícalo explícitamente
-                """
+            Genera un informe técnico profesional de obra.
+            
+            TEMATICA:
+            %s
+            
+            REGISTROS:
+            %s
+            
+            FECHA DEL INFORME:
+            %s
+            
+            ESTRUCTURA:
+            1. Resumen ejecutivo
+            2. Trabajos realizados
+            3. Incidencias detectadas
+            4. Estado actual
+            5. Recomendaciones
+            
+            REGLAS:
+            - Devuelve el informe en Markdown válido
+            - Usa # para el título principal y ## para las secciones
+            - Usa tono técnico y objetivo
+            - No inventes información
+            - Usa únicamente los registros proporcionados
+            - No añadas información no presente en los registros
+            - No hagas suposiciones ni inferencias
+            - No deduzcas ausencia de incidencias, retrasos, avances o problemas si no existe un registro que lo indique explícitamente
+            - Evita frases genéricas o corporativas
+            - Cada afirmación debe poder justificarse directamente con los registros proporcionados
+            
+            REGLA OBLIGATORIA SOBRE DATOS FALTANTES:
+            
+            Si una sección no contiene información suficiente para redactarla,
+            el contenido de la sección debe ser exactamente:
+            
+            Sin datos
+            
+            No utilices expresiones como:
+            - "No se han detectado incidencias"
+            - "No se dispone de información adicional"
+            - "Según los registros disponibles"
+            - "No consta información"
+            - Cualquier otra conclusión basada en ausencia de registros
+            
+            Si no hay datos para una sección, escribe únicamente:
+            
+            Sin datos
+            """
                 .formatted(topic, markdown, date);
-
     }
     private RecordType parseType(String value) {
         try {

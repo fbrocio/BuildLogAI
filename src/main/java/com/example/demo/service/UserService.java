@@ -144,12 +144,22 @@ public class UserService {
 
         System.out.println("PASO 3");
 
-        emailService.sendEmail(
-                user.getEmail(),
-                "Código de verificación BuildLogAI",
-                "Tu nuevo código de verificación es: " + code
-        );
+        try {
 
-        System.out.println("PASO 4");
+            emailService.sendEmail(
+                    user.getEmail(),
+                    "Código de verificación BuildLogAI",
+                    "Tu nuevo código de verificación es: " + code
+            );
+
+            System.out.println("EMAIL ENVIADO");
+
+        } catch (Exception e) {
+
+            System.out.println("ERROR EMAIL:");
+            e.printStackTrace();
+
+            throw e;
+        }
     }
 }

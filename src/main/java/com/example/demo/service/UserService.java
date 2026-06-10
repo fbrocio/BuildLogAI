@@ -58,9 +58,6 @@ public class UserService {
 
         user.setVerified(false);
         user.setVerificationCode(verificationCode);
-        user.setVerificationCodeExpiry(
-                LocalDateTime.now().plusMinutes(10)
-        );
 
         User savedUser = userRepository.save(user);
 
@@ -69,7 +66,6 @@ public class UserService {
                 "Código de verificación BuildLogAI",
                 "Tu código de verificación es: "
                         + verificationCode
-                        + "\n\nCaduca en 10 minutos."
         );
 
         return savedUser;
@@ -120,16 +116,33 @@ public class UserService {
                     "Código incorrecto");
         }
 
-        if(user.getVerificationCodeExpiry().isBefore(
-                LocalDateTime.now())){
-            throw new RuntimeException(
-                    "Código expirado");
-        }
-
         user.setVerified(true);
         user.setVerificationCode(null);
         user.setVerificationCodeExpiry(null);
 
         userRepository.save(user);
+    }
+
+    public void resendVerificationCode(String email) {
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new RuntimeException("Usuario no encontrado"));
+
+        String code = String.format(
+                "%06d",
+                new Random().nextInt(1000000)
+        );
+
+        user.setVerificationCode(code);
+
+        userRepository.save(user);
+
+        emailService.sendEmail(
+                user.getEmail(),
+                "Código de verificación BuildLogAI",
+                "Tu nuevo código de verificación es: "
+                        + code
+        );
     }
 }

@@ -9,6 +9,7 @@ import com.example.demo.service.EmailService;
 import com.example.demo.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -77,6 +78,15 @@ public class UserController {
         );
 
         return "Cuenta verificada correctamente";
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<String> resendVerification(
+            @RequestParam String email) {
+
+        userService.resendVerificationCode(email);
+
+        return ResponseEntity.ok("Código reenviado");
     }
 
 }

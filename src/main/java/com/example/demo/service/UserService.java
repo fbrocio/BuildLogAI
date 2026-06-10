@@ -2,6 +2,7 @@ package com.example.demo.service;
 
 import com.example.demo.dto.AuthResponse;
 import com.example.demo.dto.UserRequest;
+import com.example.demo.exception.EmailNotVerifiedException;
 import com.example.demo.model.User;
 import com.example.demo.repository.UserRepository;
 import org.springframework.http.HttpStatus;
@@ -83,8 +84,7 @@ public class UserService {
             throw new RuntimeException("Contraseña incorrecta");
         }
         if(!user.isVerified()){
-            throw new RuntimeException(
-                    "Debes verificar tu correo antes de iniciar sesión");
+            throw new EmailNotVerifiedException();
         }
 
         String token = jwtService.generateToken(user.getId());

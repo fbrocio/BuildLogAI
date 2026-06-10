@@ -1,32 +1,53 @@
 package com.example.demo.service;
 
-import org.springframework.mail.SimpleMailMessage;
-import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class EmailService {
 
-    private final JavaMailSender mailSender;
-
-    public EmailService(JavaMailSender mailSender) {
-        this.mailSender = mailSender;
-    }
+    @Value("${brevo.api.key}")
+    private String brevoApiKey;
 
     public void sendEmail(String to, String subject, String text) {
 
-        System.out.println("EMAIL SERVICE INICIO");
+        RestTemplate restTemplate = new RestTemplate();
 
-        SimpleMailMessage message = new SimpleMailMessage();
+        HttpHeaders headers = new HttpHeaders();
 
-        message.setTo(to);
-        message.setSubject(subject);
-        message.setText(text);
+        headers.setContentType(MediaType.APPLICATION_JSON);
 
-        System.out.println("ANTES DE SEND");
+        headers.set("api-key", brevoApiKey);
 
-        mailSender.send(message);
+        Map<String, Object> body = Map.of(
+                "sender", Map.of(
+                        "name", "BuildLogAI",
+                        "email", "buildlogai.noreply@gmail.com"
+                ),
+                "to", List.of(
+                        Map.of("email", to)
+                ),
+                "subject", subject,
+                "textContent", text
+        );
 
-        System.out.println("DESPUES DE SEND");
+        HttpEntity<Map<String, Object>> request =
+                new HttpEntity<>(body, headers);
+
+        ResponseEntity<String> response =
+                restTemplate.postForEntity(
+                        "https://api.brevo.com/v3/smtp/email",
+                        request,
+                        String.class
+                );
+
+        System.out.println("BREVO RESPONSE:");
+        System.out.println(response.getStatusCode());
+        System.out.println(response.getBody());
     }
 }

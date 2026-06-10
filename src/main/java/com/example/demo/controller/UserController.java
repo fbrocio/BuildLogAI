@@ -3,9 +3,12 @@ package com.example.demo.controller;
 import com.example.demo.dto.AuthResponse;
 import com.example.demo.dto.UserRequest;
 import com.example.demo.dto.UserResponse;
+import com.example.demo.dto.VerifyRequest;
 import com.example.demo.model.User;
+import com.example.demo.service.EmailService;
 import com.example.demo.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -13,8 +16,12 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
-    public UserController(UserService userService){
+    private EmailService emailService;
+    public UserController(
+            UserService userService,
+            EmailService emailService){
         this.userService = userService;
+        this.emailService = emailService;
     }
 
     //REGISTER
@@ -58,6 +65,18 @@ public class UserController {
         User user = userService.findByEmail(email);
 
         return new UserResponse(user);
+    }
+
+    @PostMapping("/verify")
+    public String verifyEmail(
+            @RequestBody VerifyRequest request){
+
+        userService.verifyEmail(
+                request.getEmail(),
+                request.getCode()
+        );
+
+        return "Cuenta verificada correctamente";
     }
 
 }

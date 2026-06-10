@@ -5,9 +5,11 @@ import com.example.demo.dto.ImageResponse;
 import com.example.demo.dto.ParseRequest;
 import com.example.demo.dto.RecordDTO;
 import com.example.demo.exception.ResourceNotFoundException;
+import com.example.demo.model.Project;
 import com.example.demo.model.Record;
 import com.example.demo.model.RecordImage;
 import com.example.demo.model.User;
+import com.example.demo.repository.ProjectRepository;
 import com.example.demo.repository.RecordImageRepository;
 import com.example.demo.repository.RecordRepository;
 import com.example.demo.repository.UserRepository;
@@ -24,6 +26,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.awt.*;
 import java.util.HashMap;
@@ -45,6 +48,7 @@ public class RecordController {
     private final FileStorageService fileStorageService;
     private final UserRepository userRepository;
     private final CloudinaryService cloudinaryService;
+    private final ProjectRepository projectRepository;
 
     public RecordController(
             RecordRepository repository,
@@ -53,7 +57,8 @@ public class RecordController {
             RecordImageRepository recordImageRepository,
             FileStorageService fileStorageService,
             UserRepository userRepository,
-            CloudinaryService cloudinaryService) {
+            CloudinaryService cloudinaryService,
+            ProjectRepository projectRepository) {
         this.repository = repository;
         this.recordService = recordService;
         this.AIService = AIService;
@@ -61,6 +66,7 @@ public class RecordController {
         this.fileStorageService = fileStorageService;
         this.userRepository = userRepository;
         this.cloudinaryService = cloudinaryService;
+        this.projectRepository = projectRepository;
     }
 
     @PostMapping
@@ -111,7 +117,21 @@ public class RecordController {
     }
 
     @GetMapping("/project/{projectId}")
-    public List<RecordDTO> getByProject(@PathVariable Long projectId) {
+    public List<RecordDTO> getByProject(@PathVariable Long projectId, HttpServletRequest httpRequest) {
+
+        Long userId = (Long) httpRequest.getAttribute("userId");
+
+        if (userId == null) {
+            throw new RuntimeException(
+                    "No autenticado"
+            );
+        }
+
+        Project project = projectRepository.findById(projectId).orElseThrow(() ->
+                new ResourceNotFoundException("Project not found"));
+
+        verifyProjectMember(project, userId);
+
         return recordService.getRecordsByProject(projectId);
     }
 
@@ -247,8 +267,20 @@ public class RecordController {
     @PostMapping("/{id}/images")
     public ResponseEntity<?> addImage(
             @PathVariable Long id,
-            @RequestParam("image") MultipartFile image
+            @RequestParam("image") MultipartFile image,
+            HttpServletRequest httpRequest
+
     ) {
+
+        Long userId =
+                (Long) httpRequest.getAttribute("userId");
+
+        if (userId == null) {
+
+            throw new RuntimeException(
+                    "No autenticado"
+            );
+        }
 
         try {
 
@@ -259,6 +291,9 @@ public class RecordController {
                             new ResourceNotFoundException(
                                     "Record not found"
                             ));
+
+            verifyRecordOwner(record, userId);
+
             if (image.isEmpty()) {
                 throw new RuntimeException("Image is empty");
             }
@@ -336,9 +371,30 @@ public class RecordController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id){
+    public ResponseEntity<Void> delete(
+            @PathVariable Long id,
+            HttpServletRequest httpRequest
+    ){
+
+        Long userId =
+                (Long) httpRequest.getAttribute("userId");
+
+        if (userId == null) {
+
+            throw new RuntimeException(
+                    "No autenticado"
+            );
+        }
+
         Record record = repository.findById(id)
-                        .orElseThrow(()-> new ResourceNotFoundException("Record not found"));
+                        .orElseThrow(()->
+                                new ResourceNotFoundException(
+                                        "Record not found"
+                                )
+                        );
+
+        verifyRecordOwner(record, userId);
+
         repository.delete(record);
         return ResponseEntity.noContent().build();
     }
@@ -346,7 +402,9 @@ public class RecordController {
     @PutMapping("/{id}")
     public ResponseEntity<?> update(@PathVariable Long id,
                                     @Valid @RequestBody Record newRecord,
-                                    BindingResult result){
+                                    BindingResult result,
+                                    HttpServletRequest httpRequest
+    ){
         //1. Validación
         if (result.hasErrors()) {
             Map<String, String> errors = new HashMap<>();
@@ -355,9 +413,23 @@ public class RecordController {
             }
             return ResponseEntity.badRequest().body(errors);
         }
+
+        //Usuario autenticado
+        Long userId =
+                (Long) httpRequest.getAttribute("userId");
+
+        if (userId == null) {
+
+            throw new RuntimeException(
+                    "No autenticado"
+            );
+        }
         //2. Buscar existente (o devolver 404)
         Record existing = repository.findById(id)
                         .orElseThrow(()-> new ResourceNotFoundException("Record not found"));
+
+        // Verificar propietario
+        verifyRecordOwner(existing, userId);
 
         //3. Actualizar campos permitidos
         existing.setTitle(newRecord.getTitle());
@@ -400,4 +472,42 @@ public class RecordController {
                 record.getImages()
         );
     }
+
+    private void verifyRecordOwner(
+            Record record,
+            Long userId
+    ) {
+
+        if (record.getCreatedBy() == null ||
+                !record.getCreatedBy()
+                        .getId()
+                        .equals(userId)) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Solo el creador puede modificar este registro"
+            );
+        }
+    }
+
+    private void verifyProjectMember(
+            Project project,
+            Long userId
+    ) {
+
+        boolean isMember = project.getUsers()
+                .stream()
+                .anyMatch(user ->
+                        user.getId().equals(userId)
+                );
+
+        if (!isMember) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "No tienes acceso a este proyecto"
+            );
+        }
+    }
+
 }

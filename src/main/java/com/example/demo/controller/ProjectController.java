@@ -9,8 +9,10 @@ import com.example.demo.repository.UserRepository;
 import com.example.demo.service.ProjectService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -77,7 +79,8 @@ public class ProjectController {
     @PostMapping("/{projectId}/users/{userId}")
     public void addUserToProject(
             @PathVariable Long projectId,
-            @PathVariable Long userId
+            @PathVariable Long userId,
+            HttpServletRequest httpRequest
     ) {
 
         Project project = projectRepository
@@ -91,6 +94,16 @@ public class ProjectController {
                 .orElseThrow(() ->
                         new RuntimeException("Usuario no encontrado")
                 );
+
+        // verificar permiso
+        Long currentUserId =
+                (Long) httpRequest.getAttribute("userId");
+
+        if (currentUserId == null) {
+            throw new RuntimeException("No autenticado");
+        }
+
+        verifyProjectOwner(project, currentUserId);
 
         // evitar duplicados
 
@@ -133,18 +146,7 @@ public class ProjectController {
 
         // Verificar acceso
 
-        boolean hasAccess = project.getUsers()
-                .stream()
-                .anyMatch(u ->
-                        u.getId().equals(userId)
-                );
-
-        if (!hasAccess) {
-
-            throw new RuntimeException(
-                    "Sin permisos"
-            );
-        }
+        verifyProjectOwner(project, userId);
 
         project.setName(
                 request.getName()
@@ -186,22 +188,22 @@ public class ProjectController {
 
         // Verificar acceso
 
-        boolean hasAccess = project.getUsers()
-                .stream()
-                .anyMatch(u ->
-                        u.getId().equals(userId)
-                );
-
-        if (!hasAccess) {
-
-            throw new RuntimeException(
-                    "Sin permisos"
-            );
-        }
+        verifyProjectOwner(project, userId);
 
         projectRepository.delete(project);
 
         return ResponseEntity.noContent().build();
+    }
+
+    private void verifyProjectOwner(Project project, Long userId) {
+        if (project.getCreatedBy() == null ||
+                !project.getCreatedBy().getId().equals(userId)) {
+
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Solo el creador puede modificar este proyecto"
+            );
+        }
     }
 
 }

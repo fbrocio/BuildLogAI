@@ -5,6 +5,9 @@ import com.example.demo.repository.RecordRepository;
 import org.springframework.stereotype.Service;
 
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Service
@@ -21,15 +24,52 @@ public class ReportService {
         this.aiService = aiService;
     }
 
-    public String generateReport(String topic) {
+    public String generateReport(String query) {
 
-        List<Record> records =
-                recordRepository
-                        .findByTitleContainingIgnoreCase(topic);
+        List<Record> records;
+
+        if (isDate(query)) {
+
+            LocalDate date = LocalDate.parse(
+                    query,
+                    DateTimeFormatter.ofPattern("dd-MM-yyyy")
+            );
+
+            LocalDateTime start = date.atStartOfDay();
+
+            LocalDateTime end = date.atTime(23, 59, 59);
+
+            records = recordRepository.findByCreatedAtBetween(
+                    start,
+                    end
+            );
+
+        } else {
+
+            records = recordRepository
+                    .findByTitleContainingIgnoreCase(query);
+        }
 
         String markdown = buildMarkdown(records);
 
-        return aiService.generateReport(topic, markdown);
+        return aiService.generateReport(query, markdown);
+    }
+
+    private boolean isDate(String value) {
+
+        try {
+
+            LocalDate.parse(
+                    value,
+                    DateTimeFormatter.ofPattern("dd-MM-yyyy")
+            );
+
+            return true;
+
+        } catch (Exception e) {
+
+            return false;
+        }
     }
 
     private String buildMarkdown(List<Record> records) {

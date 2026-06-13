@@ -473,6 +473,34 @@ public class RecordController {
         );
     }
 
+    @DeleteMapping("/images/{imageId}")
+    public ResponseEntity<Void> deleteImage(
+            @PathVariable Long imageId,
+            HttpServletRequest httpRequest
+    ) {
+
+        Long userId =
+                (Long) httpRequest.getAttribute("userId");
+
+        if (userId == null) {
+            throw new RuntimeException("No autenticado");
+        }
+
+        RecordImage image = recordImageRepository.findById(imageId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Image not found"
+                        ));
+
+        Record record = image.getRecord();
+
+        verifyRecordOwner(record, userId);
+
+        recordImageRepository.delete(image);
+
+        return ResponseEntity.noContent().build();
+    }
+
     private void verifyRecordOwner(
             Record record,
             Long userId

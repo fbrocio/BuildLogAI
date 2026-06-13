@@ -119,6 +119,44 @@ public class ProjectController {
         }
     }
 
+    @Transactional
+    @DeleteMapping("/{projectId}/users/{userId}")
+    public ResponseEntity<Void> removeUserFromProject(
+            @PathVariable Long projectId,
+            @PathVariable Long userId,
+            HttpServletRequest httpRequest
+    ) {
+
+        Project project = projectRepository
+                .findById(projectId)
+                .orElseThrow(() ->
+                        new RuntimeException("Proyecto no encontrado")
+                );
+
+        User user = userRepository
+                .findById(userId)
+                .orElseThrow(() ->
+                        new RuntimeException("Usuario no encontrado")
+                );
+
+        Long currentUserId =
+                (Long) httpRequest.getAttribute("userId");
+
+        if (currentUserId == null) {
+            throw new RuntimeException("No autenticado");
+        }
+
+        verifyProjectOwner(project, currentUserId);
+
+        project.getUsers().removeIf(
+                u -> u.getId().equals(userId)
+        );
+
+        projectRepository.save(project);
+
+        return ResponseEntity.noContent().build();
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<Project> updateProject(
             @PathVariable Long id,

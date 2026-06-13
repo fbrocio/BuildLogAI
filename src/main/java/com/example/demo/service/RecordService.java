@@ -96,7 +96,7 @@ public class RecordService {
     }
 
     public List<RecordDTO> getRecordsByProject(Long projectId) {
-        List<Record> records = recordRepository.findByProjectId(projectId);
+        List<Record> records = recordRepository.findByProjectIdOrderByCreatedAtDesc(projectId);
         return records.stream().map(this::mapToDTO).toList();
     }
 

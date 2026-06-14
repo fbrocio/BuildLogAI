@@ -180,90 +180,6 @@ public class RecordController {
         return ResponseEntity.ok(savedRecords);
     }
 
-
-    /*@PostMapping("/{id}/images")
-    public ResponseEntity<?> addImage(
-            @PathVariable Long id,
-            @RequestParam("image")MultipartFile image
-            ){
-        //Buscar record
-        Record record = repository.findById(id)
-                .orElseThrow(()->
-                        new ResourceNotFoundException("Record not found"));
-
-        //Guardar archivo físico
-        String imageUrl = fileStorageService.saveImage(image);
-
-        //Crear entidad RecordImage
-        RecordImage recordImage = new RecordImage();
-        recordImage.setRecord(record);
-        recordImage.setImageUrl(imageUrl);
-
-        //Guardar en BD
-        RecordImage savedImage =
-                recordImageRepository.save(recordImage);
-
-        //Respuesta
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(savedImage);
-    }*/
-
-    /*@PostMapping("/{id}/images")
-    public ResponseEntity<?> addImage(
-            @PathVariable Long id,
-            @RequestParam("image") MultipartFile image
-    ) {
-
-        try {
-
-            // Buscar record
-
-            Record record = repository.findById(id)
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Record not found"
-                            ));
-
-            System.out.println("RECORD OK");
-
-            // Guardar archivo físico
-
-            String imageUrl =
-                    fileStorageService.saveImage(image);
-
-            System.out.println("IMAGE SAVED: " + imageUrl);
-
-            // Crear entidad
-
-            RecordImage recordImage = new RecordImage();
-
-            recordImage.setRecord(record);
-
-            recordImage.setImageUrl(imageUrl);
-
-            System.out.println("ENTITY CREATED");
-
-            // Guardar BD
-
-            RecordImage savedImage =
-                    recordImageRepository.save(recordImage);
-
-            System.out.println("DB SAVED");
-
-            return ResponseEntity
-                    .status(HttpStatus.CREATED)
-                    .body(savedImage);
-
-        } catch (Exception e) {
-
-            e.printStackTrace();
-
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(e.getMessage());
-        }
-    }*/
     @PostMapping("/{id}/images")
     public ResponseEntity<?> addImage(
             @PathVariable Long id,
@@ -376,37 +292,28 @@ public class RecordController {
             HttpServletRequest httpRequest
     ) {
 
-        try {
+        Long userId =
+                (Long) httpRequest.getAttribute("userId");
 
-            Long userId =
-                    (Long) httpRequest.getAttribute("userId");
+        if (userId == null) {
 
-            if (userId == null) {
-
-                throw new RuntimeException(
-                        "No autenticado"
-                );
-            }
-
-            Record record = repository.findById(id)
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Record not found"
-                            )
-                    );
-
-            verifyRecordOwner(record, userId);
-
-            repository.delete(record);
-
-            return ResponseEntity.noContent().build();
-
-        } catch (Exception e) {
-
-            e.printStackTrace();
-
-            throw e;
+            throw new RuntimeException(
+                    "No autenticado"
+            );
         }
+
+        Record record = repository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Record not found"
+                        )
+                );
+
+        verifyRecordOwner(record, userId);
+
+        repository.delete(record);
+
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{id}")

@@ -374,29 +374,39 @@ public class RecordController {
     public ResponseEntity<Void> delete(
             @PathVariable Long id,
             HttpServletRequest httpRequest
-    ){
+    ) {
 
-        Long userId =
-                (Long) httpRequest.getAttribute("userId");
+        try {
 
-        if (userId == null) {
+            Long userId =
+                    (Long) httpRequest.getAttribute("userId");
 
-            throw new RuntimeException(
-                    "No autenticado"
-            );
+            if (userId == null) {
+
+                throw new RuntimeException(
+                        "No autenticado"
+                );
+            }
+
+            Record record = repository.findById(id)
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException(
+                                    "Record not found"
+                            )
+                    );
+
+            verifyRecordOwner(record, userId);
+
+            repository.delete(record);
+
+            return ResponseEntity.noContent().build();
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            throw e;
         }
-
-        Record record = repository.findById(id)
-                        .orElseThrow(()->
-                                new ResourceNotFoundException(
-                                        "Record not found"
-                                )
-                        );
-
-        verifyRecordOwner(record, userId);
-
-        repository.delete(record);
-        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{id}")

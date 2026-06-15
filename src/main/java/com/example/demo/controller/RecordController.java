@@ -411,6 +411,11 @@ public class RecordController {
 
         Record record = image.getRecord();
 
+        System.out.println("DELETE IMAGE");
+        System.out.println("UserId JWT: " + userId);
+        System.out.println("Record owner: " + record.getCreatedBy().getId());
+        System.out.println("ImageId: " + imageId);
+
         verifyRecordOwner(record, userId);
 
         recordImageRepository.delete(image);

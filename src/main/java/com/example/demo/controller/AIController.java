@@ -17,11 +17,6 @@ public class AIController {
         this.aiService = aiService;
     }
 
-    /*@PostMapping("/transcribe")
-    public ResponseEntity<TranscriptionResponse> transcribe(
-            @RequestParam("file") MultipartFile file) {
-        return ResponseEntity.ok(iaService.transcribeAudio(file));
-    }*/
 
     @PostMapping("/parse")
     public AIResponse parse(@RequestBody AIRequest request) {

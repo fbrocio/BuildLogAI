@@ -308,27 +308,10 @@ public class RecordController {
                                 "Record not found"
                         )
                 );
-        System.out.println("========== DELETE DEBUG ==========");
-        System.out.println("Record ID: " + id);
-        System.out.println("User ID token: " + userId);
 
-        if (record.getCreatedBy() != null) {
-            System.out.println(
-                    "CreatedBy ID: " +
-                            record.getCreatedBy().getId()
-            );
-        } else {
-            System.out.println("CreatedBy es NULL");
-        }
-
-        System.out.println("Antes de verifyRecordOwner");
         verifyRecordOwner(record, userId);
 
-        System.out.println("Despues de verifyRecordOwner");
-
         repository.delete(record);
-
-        System.out.println("Despues de repository.delete");
 
         return ResponseEntity.noContent().build();
     }

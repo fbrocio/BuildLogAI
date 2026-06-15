@@ -385,11 +385,36 @@ public class RecordController {
                                 "Record not found"
                         ));
 
+        System.out.println(
+                "IMAGES COUNT: "
+                        + record.getImages().size()
+        );
+
+        for (RecordImage image : record.getImages()) {
+            System.out.println(
+                    "IMAGE ID: " + image.getId()
+            );
+        }
+
         return ResponseEntity.ok(
                 record.getImages()
         );
     }
+    /*@GetMapping("/{id}/images")
+    public ResponseEntity<List<RecordImage>> getImages(
+            @PathVariable Long id
+    ) {
 
+        Record record = repository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Record not found"
+                        ));
+
+        return ResponseEntity.ok(
+                record.getImages()
+        );
+    }*/
     @DeleteMapping("/images/{imageId}")
     public ResponseEntity<Void> deleteImage(
             @PathVariable Long imageId,
@@ -411,14 +436,16 @@ public class RecordController {
 
         Record record = image.getRecord();
 
-        System.out.println("DELETE IMAGE");
-        System.out.println("UserId JWT: " + userId);
-        System.out.println("Record owner: " + record.getCreatedBy().getId());
-        System.out.println("ImageId: " + imageId);
-
         verifyRecordOwner(record, userId);
 
-        recordImageRepository.delete(image);
+        record.getImages().remove(image);
+
+        System.out.println(
+                "IMAGES AFTER DELETE: "
+                        + record.getImages().size()
+        );
+
+        repository.save(record);
 
         return ResponseEntity.noContent().build();
     }

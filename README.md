@@ -1,8 +1,8 @@
 # BuildLog AI API
 
-Backend de una aplicacion de gestión y análisis de obra asistida por inteligencia artificial.
+Backend de gestion y analisis de obra asistido por inteligencia artificial.
 
-La API permite registrar usuarios, autenticar peticiones con JWT, gestionar proyectos, crear registros de obra, adjuntar imagenes, transformar texto libre en registros estructurados mediante IA y generar informes técnicos en Markdown o PDF.
+La API permite registrar usuarios, autenticar peticiones con JWT, gestionar proyectos, crear registros de obra, adjuntar imagenes, transformar texto libre en registros estructurados mediante IA y generar informes tecnicos en Markdown o PDF.
 
 ## Tecnologias principales
 
@@ -10,48 +10,70 @@ La API permite registrar usuarios, autenticar peticiones con JWT, gestionar proy
 - Spring Boot 4
 - Maven
 - Spring Data JPA
-- MySQL
+- PostgreSQL
 - JWT
 - Google Gemini API
-- Generación de PDF con OpenPDF / OpenHTMLToPDF
+- Cloudinary para almacenamiento de imagenes
+- Brevo para envio de correos
+- Generacion de PDF con OpenPDF / OpenHTMLToPDF
 
 ## Requisitos
 
 - JDK 21
 - Maven, o el wrapper incluido `mvnw`
-- MySQL en local
+- PostgreSQL local
 - Base de datos `gestorobras`
-- Claves de IA configuradas en `.env`º1
+- Variables de entorno configuradas para base de datos, IA, Cloudinary y correo
 
 ## Configuracion
 
 La configuracion principal esta en `src/main/resources/application.properties`.
 
-Por defecto la API usa:
+Por defecto la aplicacion activa el perfil `dev`:
 
 ```properties
-server.port=8080
-spring.datasource.url=jdbc:mysql://localhost:3306/gestorobras
-spring.datasource.username=root
-spring.datasource.password=root
+spring.profiles.active=dev
 ```
 
-Tambien carga variables desde un archivo `.env` en la raiz del proyecto:
+En desarrollo usa PostgreSQL con esta configuracion base:
+
+```properties
+spring.datasource.url=jdbc:postgresql://localhost:5432/gestorobras
+spring.datasource.username=postgres
+spring.datasource.password=root
+spring.jpa.hibernate.ddl-auto=update
+```
+
+En produccion se espera que las credenciales lleguen por variables de entorno:
+
+```properties
+SPRING_DATASOURCE_URL=...
+SPRING_DATASOURCE_USERNAME=...
+SPRING_DATASOURCE_PASSWORD=...
+PORT=8080
+```
+
+La aplicacion tambien carga variables desde un archivo `.env` en la raiz del proyecto:
 
 ```properties
 OPENAI_API_KEY=...
 GOOGLE_GEMINI_API_KEY=...
 GOOGLE_GEMINI_PROJECT_ID=...
 GOOGLE_GEMINI_LOCATION=...
+CLOUDINARY_CLOUD_NAME=...
+CLOUDINARY_API_KEY=...
+CLOUDINARY_API_SECRET=...
+MAIL_USERNAME=...
+MAIL_PASSWORD=...
+BREVO_API_KEY=...
 ```
 
-El proyecto valida el esquema de base de datos al arrancar:
+Ademas, la configuracion incluye:
 
-```properties
-spring.jpa.hibernate.ddl-auto=validate
-```
-
-Por tanto, las tablas deben existir antes de ejecutar la aplicacion.
+- `spring.servlet.multipart.max-file-size=10MB`
+- `spring.servlet.multipart.max-request-size=10MB`
+- `jwt.secret=my-super-secret-key-my-super-secret-key`
+- `jwt.expiration=86400000`
 
 ## Ejecucion
 
@@ -67,15 +89,15 @@ En Windows:
 .\mvnw.cmd spring-boot:run
 ```
 
-La API quedará disponible en:
+La API queda disponible en:
 
 ```text
 http://localhost:8080
 ```
 
-## Autenticación
+## Autenticacion
 
-El login devuelve un token JWT. Las rutas que dependen del usuario autenticado esperan la cabecera:
+El login devuelve un token JWT. Las rutas protegidas esperan la cabecera:
 
 ```http
 Authorization: Bearer <token>
@@ -87,7 +109,7 @@ El filtro `JwtFilter` valida el token y guarda el `userId` en la request para qu
 
 ## Usuarios
 
-Permite registrar usuarios, iniciar sesion y consultar informacion basica.
+Permite registrar usuarios, iniciar sesion, verificar la cuenta y consultar informacion basica.
 
 ### Registrar usuario
 
@@ -137,10 +159,33 @@ GET /api/users/me
 Authorization: Bearer <token>
 ```
 
+Devuelve el `userId` extraido del JWT validado por el backend.
+
 ### Buscar usuario por email
 
 ```http
 GET /api/users/email?email=demo@example.com
+```
+
+### Verificar cuenta
+
+```http
+POST /api/users/verify
+```
+
+Body:
+
+```json
+{
+  "email": "demo@example.com",
+  "code": "123456"
+}
+```
+
+### Reenviar codigo de verificacion
+
+```http
+POST /api/users/resend-verification?email=demo@example.com
 ```
 
 ## Proyectos
@@ -170,6 +215,12 @@ GET /api/projects
 Authorization: Bearer <token>
 ```
 
+### Endpoint de debug
+
+```http
+GET /api/projects/debug
+```
+
 ### Actualizar proyecto
 
 ```http
@@ -194,6 +245,14 @@ GET /api/projects/{id}/users
 
 ```http
 POST /api/projects/{projectId}/users/{userId}
+Authorization: Bearer <token>
+```
+
+### Eliminar usuario de un proyecto
+
+```http
+DELETE /api/projects/{projectId}/users/{userId}
+Authorization: Bearer <token>
 ```
 
 ## Registros de obra
@@ -246,12 +305,14 @@ GET /records/{id}
 
 ```http
 GET /records/project/{projectId}
+Authorization: Bearer <token>
 ```
 
 ### Actualizar registro
 
 ```http
 PUT /records/{id}
+Authorization: Bearer <token>
 ```
 
 ### Cambiar estado de un registro
@@ -272,16 +333,18 @@ Body:
 
 ```http
 DELETE /records/{id}
+Authorization: Bearer <token>
 ```
 
 ## Imagenes de registros
 
-Permite subir imagenes asociadas a un registro. Los archivos se guardan en `upload/records` y se sirven publicamente desde `/upload/**`.
+Permite subir imagenes asociadas a un registro. Los archivos se sirven publicamente desde `/upload/**`.
 
 ### Subir imagen
 
 ```http
 POST /records/{id}/images
+Authorization: Bearer <token>
 Content-Type: multipart/form-data
 ```
 
@@ -291,7 +354,7 @@ Campo del formulario:
 image=<archivo>
 ```
 
-La respuesta contiene la entidad `RecordImage` con la URL generada, por ejemplo:
+La respuesta devuelve la URL generada, por ejemplo:
 
 ```text
 /upload/records/<uuid>.jpg
@@ -301,6 +364,13 @@ La respuesta contiene la entidad `RecordImage` con la URL generada, por ejemplo:
 
 ```http
 GET /records/{id}/images
+```
+
+### Eliminar imagen de un registro
+
+```http
+DELETE /records/images/{imageId}
+Authorization: Bearer <token>
 ```
 
 ## IA para estructurar texto
@@ -318,27 +388,6 @@ Body:
 ```json
 {
   "text": "Han llegado rotas 5 luminarias de ArkosLight. Pedir reposicion antes del viernes."
-}
-```
-
-Respuesta esperada:
-
-```json
-{
-  "records": [
-    {
-      "title": "Recepcion de luminarias defectuosas",
-      "description": "Han llegado 5 luminarias rotas de ArkosLight",
-      "type": "INCIDENCIA",
-      "status": "ABIERTA",
-      "structuredData": {
-        "company": "ArkosLight",
-        "quantity": 5,
-        "unit": "uds",
-        "subject": "Luminarias defectuosas"
-      }
-    }
-  ]
 }
 ```
 
@@ -385,7 +434,7 @@ Body:
 
 ## Informes
 
-La API puede buscar registros por tema, generar un informe técnico con IA y devolverlo como texto Markdown o como PDF.
+La API puede buscar registros por tema, generar un informe tecnico con IA y devolverlo como texto Markdown o como PDF.
 
 ### Generar informe en Markdown
 
@@ -398,14 +447,6 @@ Body:
 ```json
 {
   "topic": "luminarias"
-}
-```
-
-Respuesta:
-
-```json
-{
-  "report": "# Informe tecnico..."
 }
 ```
 
@@ -436,14 +477,18 @@ informe_<timestamp>.pdf
 | --- | --- | --- |
 | POST | `/api/users/register` | Registra un usuario |
 | POST | `/api/users/login` | Autentica y devuelve JWT |
-| GET | `/api/users/me` | Devuelve el usuario autenticado |
+| GET | `/api/users/me` | Devuelve el userId autenticado |
 | GET | `/api/users/email` | Busca usuario por email |
+| POST | `/api/users/verify` | Verifica la cuenta por codigo |
+| POST | `/api/users/resend-verification` | Reenvia el codigo de verificacion |
 | POST | `/api/projects` | Crea un proyecto |
 | GET | `/api/projects` | Lista proyectos del usuario autenticado |
+| GET | `/api/projects/debug` | Muestra el numero total de proyectos |
 | PUT | `/api/projects/{id}` | Actualiza un proyecto |
 | DELETE | `/api/projects/{id}` | Elimina un proyecto |
 | GET | `/api/projects/{id}/users` | Lista usuarios de un proyecto |
 | POST | `/api/projects/{projectId}/users/{userId}` | Asocia un usuario a un proyecto |
+| DELETE | `/api/projects/{projectId}/users/{userId}` | Desasocia un usuario de un proyecto |
 | POST | `/records` | Crea un registro |
 | GET | `/records` | Lista registros |
 | GET | `/records/{id}` | Obtiene un registro |
@@ -453,6 +498,7 @@ informe_<timestamp>.pdf
 | DELETE | `/records/{id}` | Elimina un registro |
 | POST | `/records/{id}/images` | Sube imagen a un registro |
 | GET | `/records/{id}/images` | Lista imagenes de un registro |
+| DELETE | `/records/images/{imageId}` | Elimina una imagen |
 | POST | `/ai/parse` | Convierte texto libre en registros estructurados |
 | POST | `/records/parse` | Genera registros desde texto para un proyecto |
 | POST | `/records/confirm` | Persiste registros generados por IA |
@@ -462,11 +508,15 @@ informe_<timestamp>.pdf
 ## Notas de desarrollo
 
 - El limite de subida de archivos esta configurado en 10 MB.
-- Los archivos subidos se almacenan en la carpeta local `upload/records`.
-- La ruta publica de archivos es `/upload/**`.
-- Algunas rutas usan autenticacion JWT de forma explicita en el controlador, principalmente usuarios y proyectos.
-- La creacion directa y la confirmacion de registros usan el usuario autenticado mediante JWT como autor.
+- Los archivos subidos se almacenan en `upload/records` y se exponen desde `/upload/**`.
+- Algunas rutas usan autenticacion JWT de forma explicita en el controlador, principalmente usuarios, proyectos y registros mutables.
+- La creacion directa y la confirmacion de registros usan el usuario autenticado como autor.
 - El servicio de IA intenta usar `gemini-2.5-flash` y, si falla, `gemini-1.5-flash`.
+- El envio de verificacion por correo usa Brevo.
+
+## Docker
+
+Hay un `Dockerfile` en el repositorio para construir la imagen de la aplicacion.
 
 ## Tests
 

@@ -6,6 +6,7 @@ import com.example.demo.dto.TextRequest;
 import com.example.demo.dto.TranscriptionResponse;
 import com.example.demo.service.AIService;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/ai")
@@ -19,7 +20,7 @@ public class AIController {
 
 
     @PostMapping("/parse")
-    public AIResponse parse(@RequestBody AIRequest request) {
+    public AIResponse parse(@Valid @RequestBody AIRequest request) {
         return aiService.processAIResponse(request.getText());
     }
 

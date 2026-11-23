@@ -6,6 +6,8 @@ import com.example.demo.model.RecordStatus;
 import com.example.demo.model.RecordType;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -14,19 +16,19 @@ public class RecordDTO {
 
     private Long id;
 
-    @NotBlank
+    @NotBlank @Size(max = 255)
     private String title;
 
-    @NotBlank
+    @NotBlank @Size(max = 4000)
     private String description;
 
-    private RecordType type;
+    @NotNull private RecordType type;
 
-    private RecordStatus status;
+    @NotNull private RecordStatus status;
 
     private Map<String, Object> structuredData;
 
-    private Long projectId;
+    @NotNull private Long projectId;
 
     private UserResponse createdBy;
 
@@ -69,7 +71,7 @@ public class RecordDTO {
 
         this.structuredData = record.getStructuredData();
 
-        this.projectId = record.getProjectId();
+        this.projectId = record.getProject() == null ? null : record.getProject().getId();
 
         this.createdAt = record.getCreatedAt();
 

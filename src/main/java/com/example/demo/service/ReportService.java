@@ -14,17 +14,22 @@ import java.util.List;
 public class ReportService {
 
     private final RecordRepository recordRepository;
+    private final ProjectAccessService projectAccessService;
     private final AIService aiService;
 
     public ReportService(
             RecordRepository recordRepository,
+            ProjectAccessService projectAccessService,
             AIService aiService
     ) {
         this.recordRepository = recordRepository;
+        this.projectAccessService = projectAccessService;
         this.aiService = aiService;
     }
 
-    public String generateReport(String query) {
+    public String generateReport(String query, Long projectId, Long userId) {
+
+        projectAccessService.requireMember(projectId, userId);
 
         List<Record> records;
 
@@ -39,7 +44,8 @@ public class ReportService {
 
             LocalDateTime end = date.atTime(23, 59, 59);
 
-            records = recordRepository.findByCreatedAtBetween(
+            records = recordRepository.findByProject_IdAndCreatedAtBetween(
+                    projectId,
                     start,
                     end
             );
@@ -47,7 +53,7 @@ public class ReportService {
         } else {
 
             records = recordRepository
-                    .findByTitleContainingIgnoreCase(query);
+                    .findByProject_IdAndTitleContainingIgnoreCase(projectId, query);
         }
 
         String markdown = buildMarkdown(records);

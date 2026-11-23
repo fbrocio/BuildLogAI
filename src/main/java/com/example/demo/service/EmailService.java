@@ -4,6 +4,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
@@ -11,12 +13,18 @@ import java.util.Map;
 @Service
 public class EmailService {
 
+    private static final Logger log = LoggerFactory.getLogger(EmailService.class);
+
+    private final RestTemplate restTemplate;
+
     @Value("${brevo.api.key}")
     private String brevoApiKey;
 
-    public void sendEmail(String to, String subject, String text) {
+    public EmailService(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
+    }
 
-        RestTemplate restTemplate = new RestTemplate();
+    public void sendEmail(String to, String subject, String text) {
 
         HttpHeaders headers = new HttpHeaders();
 
@@ -46,8 +54,6 @@ public class EmailService {
                         String.class
                 );
 
-        System.out.println("BREVO RESPONSE:");
-        System.out.println(response.getStatusCode());
-        System.out.println(response.getBody());
+        log.debug("Brevo accepted verification email with status {}", response.getStatusCode());
     }
 }

@@ -32,8 +32,9 @@ public class Record {
     @Enumerated(EnumType.STRING)
     private RecordStatus status;
 
-    @Column(name = "project_id")
-    private Long projectId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "project_id", nullable = false)
+    private Project project;
 
     @ManyToOne
     @JoinColumn(name = "created_by")
@@ -59,7 +60,7 @@ public class Record {
             mappedBy = "record",
             cascade = CascadeType.ALL,
             orphanRemoval = true, //Hibernate borrará automáticamente las imágenes que se eliminen de la lista
-            fetch = FetchType.EAGER)
+            fetch = FetchType.LAZY)
     @JsonManagedReference
     private List<RecordImage> images;
 
@@ -87,8 +88,8 @@ public class Record {
         return status;
     }
 
-    public Long getProjectId() {
-        return projectId;
+    public Project getProject() {
+        return project;
     }
 
     public User getCreatedBy() {
@@ -135,8 +136,8 @@ public class Record {
         this.status = status;
     }
 
-    public void setProjectId(Long projectId) {
-        this.projectId = projectId;
+    public void setProject(Project project) {
+        this.project = project;
     }
 
     public void setCreatedBy(User createdBy) {

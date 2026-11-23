@@ -1,6 +1,6 @@
 # Base de datos
 
-Esta carpeta contiene los scripts SQL necesarios para preparar la base de datos MySQL usada por la API.
+Esta carpeta contiene los scripts SQL necesarios para preparar la base de datos PostgreSQL usada por la API.
 
 ## Script principal
 
@@ -31,11 +31,11 @@ Este script inserta usuarios, proyectos, registros, entradas de texto e imagenes
 Desde la raiz del proyecto:
 
 ```powershell
-mysql -u root -p < database/schema.sql
-mysql -u root -p < database/seed.sql
+psql "$env:SPRING_DATASOURCE_URL" -U "$env:SPRING_DATASOURCE_USERNAME" -f database/schema.sql
+psql "$env:SPRING_DATASOURCE_URL" -U "$env:SPRING_DATASOURCE_USERNAME" -f database/seed.sql
 ```
 
-Tambien puedes ejecutarlos desde MySQL Workbench, DBeaver, IntelliJ IDEA o cualquier cliente MySQL abriendo los archivos `schema.sql` y `seed.sql` y lanzando cada script completo.
+Tambien puedes ejecutarlos desde pgAdmin, DBeaver, IntelliJ IDEA o cualquier cliente PostgreSQL abriendo los archivos `schema.sql` y `seed.sql`.
 
 ## Tablas creadas
 
@@ -61,34 +61,30 @@ El esquema crea estas tablas:
 
 ## Campos relevantes
 
-La tabla `records` usa enums de MySQL para reflejar los enums Java:
+La tabla `records` usa restricciones `CHECK` de PostgreSQL para reflejar los enums Java:
 
 ```sql
-type ENUM('INCIDENCIA', 'PENDIENTE', 'AVANCE')
-status ENUM('ABIERTA', 'CERRADA')
+type VARCHAR(20) CHECK (type IN ('INCIDENCIA', 'PENDIENTE', 'AVANCE'))
+status VARCHAR(20) CHECK (status IN ('ABIERTA', 'CERRADA'))
 ```
 
-Tambien incluye un campo JSON:
+Tambien incluye un campo JSONB:
 
 ```sql
-structured_data JSON
+structured_data JSONB
 ```
 
 Este campo guarda informacion estructurada extraida por IA, como empresa, cantidad, unidad, asunto, fecha limite, porcentaje o precio.
 
-## Charset y motor
+## Tipos y codificación
 
 El script usa:
 
 ```sql
-ENGINE = InnoDB
-DEFAULT CHARSET = utf8mb4
-COLLATE = utf8mb4_unicode_ci
+TEXT, TIMESTAMP y JSONB
 ```
 
-`InnoDB` permite claves foraneas y transacciones. `utf8mb4` permite guardar correctamente tildes, la letra n con tilde y caracteres Unicode.
-
-Si tu servidor MySQL ya tiene esos valores configurados por defecto, estas lineas podrian simplificarse, pero mantenerlas hace que el script sea mas predecible entre entornos.
+PostgreSQL admite claves foráneas, transacciones y Unicode de forma nativa.
 
 ## Datos iniciales
 

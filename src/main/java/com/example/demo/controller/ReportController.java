@@ -4,9 +4,11 @@ import com.example.demo.dto.ReportRequestDTO;
 import com.example.demo.dto.ReportResponseDTO;
 import com.example.demo.service.PdfService;
 import com.example.demo.service.ReportService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -29,23 +31,17 @@ public class ReportController {
 
     @PostMapping("/generate")
     public ReportResponseDTO generate(
-            @RequestBody ReportRequestDTO request
+            @Valid @RequestBody ReportRequestDTO request,
+            HttpServletRequest httpRequest
     ) {
 
-        try {
+        String report = reportService.generateReport(
+                request.getTopic(),
+                request.getProjectId(),
+                (Long) httpRequest.getAttribute("userId")
+        );
 
-            String report =
-                    reportService.generateReport(
-                            request.getTopic()
-                    );
-
-            return new ReportResponseDTO(report);
-
-        } catch (Exception e) {
-
-            e.printStackTrace();
-            throw e;
-        }
+        return new ReportResponseDTO(report);
     }
 
     @PostMapping(
@@ -53,12 +49,15 @@ public class ReportController {
             produces = "application/pdf"
     )
     public ResponseEntity<byte[]> generatePdf(
-            @RequestBody ReportRequestDTO request
+            @Valid @RequestBody ReportRequestDTO request,
+            HttpServletRequest httpRequest
     ) {
 
         String report =
                 reportService.generateReport(
-                        request.getTopic()
+                        request.getTopic(),
+                        request.getProjectId(),
+                        (Long) httpRequest.getAttribute("userId")
                 );
 
         byte[] pdf = pdfService.generatePdf(

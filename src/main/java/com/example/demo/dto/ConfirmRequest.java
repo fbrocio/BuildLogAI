@@ -1,14 +1,18 @@
 package com.example.demo.dto;
 
-import com.example.demo.model.Record;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
 public class ConfirmRequest {
-    private String rawText;
-    private Long projectId;
-    private String source;
-    private List<Record> records;
+    @NotBlank @Size(max = 12000) private String rawText;
+    @NotNull private Long projectId;
+    @NotBlank @Size(max = 20) private String source;
+    @NotEmpty @Valid private List<RecordDTO> records;
 
     public String getRawText() {
         return rawText;
@@ -34,11 +38,11 @@ public class ConfirmRequest {
         this.source = source;
     }
 
-    public List<Record> getRecords() {
+    public List<RecordDTO> getRecords() {
         return records;
     }
 
-    public void setRecords(List<Record> records) {
+    public void setRecords(List<RecordDTO> records) {
         this.records = records;
     }
 }

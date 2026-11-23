@@ -11,6 +11,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
 
 @RestController
 @RequestMapping("/api/users")
@@ -27,13 +29,13 @@ public class UserController {
 
     //REGISTER
     @PostMapping("/register")
-    public UserResponse register (@RequestBody UserRequest request){
+    public UserResponse register (@Valid @RequestBody UserRequest request){
         return new UserResponse(userService.register(request));
     }
 
     //LOGIN
     @PostMapping("/login")
-    public AuthResponse login(@RequestBody UserRequest request){
+    public AuthResponse login(@Valid @RequestBody UserRequest request){
         return userService.login(request.getEmail(), request.getPassword());
     }
 
@@ -70,7 +72,7 @@ public class UserController {
 
     @PostMapping("/verify")
     public String verifyEmail(
-            @RequestBody VerifyRequest request){
+            @Valid @RequestBody VerifyRequest request){
 
         userService.verifyEmail(
                 request.getEmail(),
@@ -82,25 +84,10 @@ public class UserController {
 
     @PostMapping("/resend-verification")
     public ResponseEntity<String> resendVerification(
-            @RequestParam String email) {
+            @RequestParam @Email String email) {
 
-        try {
-
-            System.out.println("CONTROLLER - Email recibido: [" + email + "]");
-
-            userService.resendVerificationCode(email);
-
-            System.out.println("CONTROLLER - FIN OK");
-
-            return ResponseEntity.ok("Código reenviado");
-
-        } catch (Exception e) {
-
-            System.out.println("CONTROLLER ERROR:");
-            e.printStackTrace();
-
-            throw e;
-        }
+        userService.resendVerificationCode(email);
+        return ResponseEntity.ok("Si existe una cuenta pendiente de verificar, se enviará un código.");
     }
 
 }

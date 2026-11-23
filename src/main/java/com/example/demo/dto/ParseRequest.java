@@ -1,8 +1,11 @@
 package com.example.demo.dto;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 public class ParseRequest {
-    private String text;
-    private Long projectId;
+    @NotBlank @Size(max = 12000) private String text;
+    @NotNull private Long projectId;
 
     public String getText() {
         return text;

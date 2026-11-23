@@ -1,9 +1,12 @@
 package com.example.demo.dto;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 
 public class VerifyRequest {
 
-    private String email;
-    private String code;
+    @NotBlank @Email private String email;
+    @NotBlank @Pattern(regexp = "\\d{6}") private String code;
 
     public String getEmail() {
         return email;

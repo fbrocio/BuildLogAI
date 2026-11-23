@@ -4,487 +4,199 @@ import com.example.demo.dto.ConfirmRequest;
 import com.example.demo.dto.ImageResponse;
 import com.example.demo.dto.ParseRequest;
 import com.example.demo.dto.RecordDTO;
-import com.example.demo.exception.ResourceNotFoundException;
-import com.example.demo.model.Project;
-import com.example.demo.model.Record;
-import com.example.demo.model.RecordImage;
-import com.example.demo.model.User;
-import com.example.demo.repository.ProjectRepository;
-import com.example.demo.repository.RecordImageRepository;
-import com.example.demo.repository.RecordRepository;
-import com.example.demo.repository.UserRepository;
+import com.example.demo.dto.RecordStatusUpdateRequest;
 import com.example.demo.service.AIService;
-import com.example.demo.service.CloudinaryService;
-import com.example.demo.service.FileStorageService;
 import com.example.demo.service.RecordService;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.BindingResult;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.*;
-import jakarta.validation.Valid;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
-import java.awt.*;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * La clase RecordController se comunica con la base de datos
- */
 @RestController
 @RequestMapping("/records")
 public class RecordController {
 
-    @Autowired
-    private final RecordRepository repository;
     private final RecordService recordService;
-    private final AIService AIService;
-    private final RecordImageRepository recordImageRepository;
-    private final FileStorageService fileStorageService;
-    private final UserRepository userRepository;
-    private final CloudinaryService cloudinaryService;
-    private final ProjectRepository projectRepository;
+    private final AIService aiService;
 
     public RecordController(
-            RecordRepository repository,
             RecordService recordService,
-            AIService AIService,
-            RecordImageRepository recordImageRepository,
-            FileStorageService fileStorageService,
-            UserRepository userRepository,
-            CloudinaryService cloudinaryService,
-            ProjectRepository projectRepository) {
-        this.repository = repository;
+            AIService aiService) {
+
         this.recordService = recordService;
-        this.AIService = AIService;
-        this.recordImageRepository = recordImageRepository;
-        this.fileStorageService = fileStorageService;
-        this.userRepository = userRepository;
-        this.cloudinaryService = cloudinaryService;
-        this.projectRepository = projectRepository;
+        this.aiService = aiService;
     }
 
     @PostMapping
-    /*
-     * @ResponseEntity permite controlar código HTTP y respuesta
-     * @RequestBody convierte JSON a objeto java
-     * @BindingResult detecta si hay errores de validación
-     */
-    public ResponseEntity<?> crear(@Valid @RequestBody Record record,
-                                   BindingResult result,
-                                   HttpServletRequest httpRequest) {
-
-        System.out.println("RECIBIDO: " + record.getTitle());
-        System.out.println("====== RECORD RECIBIDO ======");
-        System.out.println("Title: " + record.getTitle());
-        System.out.println("ProjectId: " + record.getProjectId());
-        System.out.println("Type: " + record.getType());
-        System.out.println("Status: " + record.getStatus());
-
-        //Manejo de errores
-        if(result.hasErrors()) {
-            Map<String, String> errors = new HashMap<>();
-            for (FieldError error : result.getFieldErrors()){
-                errors.put(error.getField(), error.getDefaultMessage());
-            }
-            return ResponseEntity
-                    .badRequest()
-                    .body(errors);
-        }
+    public ResponseEntity<RecordDTO> crear(
+            @Valid @RequestBody RecordDTO record,
+            HttpServletRequest httpRequest) {
 
         Long userId = (Long) httpRequest.getAttribute("userId");
 
-        if (userId == null) {
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body("No autenticado");
-        }
+        com.example.demo.model.Record savedRecord =
+                recordService.createRecord(record, userId);
 
-        User currentUser =
-                userRepository.findById(userId)
-                        .orElseThrow();
-
-        record.setCreatedBy(currentUser);
-
-        //Guarda la entidad en BD y devuelve el objeto guardado
-        return ResponseEntity.status(HttpStatus.CREATED).body(repository.save(record));
-
+        return ResponseEntity.ok(new RecordDTO(savedRecord));
     }
 
     @GetMapping("/project/{projectId}")
-    public List<RecordDTO> getByProject(@PathVariable Long projectId, HttpServletRequest httpRequest) {
-
-        Long userId = (Long) httpRequest.getAttribute("userId");
-
-        if (userId == null) {
-            throw new RuntimeException(
-                    "No autenticado"
-            );
-        }
-
-        Project project = projectRepository.findById(projectId).orElseThrow(() ->
-                new ResourceNotFoundException("Project not found"));
-
-        verifyProjectMember(project, userId);
-
-        return recordService.getRecordsByProject(projectId);
-    }
-
-    @PostMapping("/parse")
-    public ResponseEntity<?> parse(@RequestBody ParseRequest request) {
-
-        List<Record> records = AIService.generateRecordsFromText(
-                request.getText(),
-                request.getProjectId()
-        );
-
-        return ResponseEntity.ok(Map.of("records", records));
-    }
-
-    @PostMapping("/confirm")
-    public ResponseEntity<List<Record>> confirm(@RequestBody ConfirmRequest request,
-                                                HttpServletRequest httpRequest) {
-
-        // Validación mínima
-        if (request.getRawText() == null || request.getRawText().isBlank()) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        if (request.getProjectId() == null) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        if (request.getRecords() == null || request.getRecords().isEmpty()) {
-            return ResponseEntity.badRequest().build();
-        }
-
-        Long userId = (Long) httpRequest.getAttribute("userId");
-
-        if (userId == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        }
-
-        List<Record> savedRecords = recordService.confirmRecords(
-                request.getRawText(),
-                request.getProjectId(),
-                request.getSource(),
-                request.getRecords(),
-                userId
-        );
-
-        return ResponseEntity.ok(savedRecords);
-    }
-
-    @PostMapping("/{id}/images")
-    public ResponseEntity<?> addImage(
-            @PathVariable Long id,
-            @RequestParam("image") MultipartFile image,
-            HttpServletRequest httpRequest
-
-    ) {
+    public List<RecordDTO> getByProject(
+            @PathVariable Long projectId,
+            HttpServletRequest httpRequest) {
 
         Long userId =
                 (Long) httpRequest.getAttribute("userId");
 
-        if (userId == null) {
+        return recordService.getRecordsByProject(
+                projectId,
+                userId
+        );
+    }
 
-            throw new RuntimeException(
-                    "No autenticado"
-            );
-        }
+    @PostMapping("/parse")
+    public ResponseEntity<?> parse(
+            @Valid @RequestBody ParseRequest request,
+            HttpServletRequest httpRequest) {
 
-        try {
+        Long userId = (Long) httpRequest.getAttribute("userId");
+        recordService.verifyProjectAccess(request.getProjectId(), userId);
 
-            // Buscar record
+        List<RecordDTO> records =
+                aiService.generateRecordsFromText(
+                        request.getText(),
+                        request.getProjectId()
+                ).stream().map(RecordDTO::new).toList();
 
-            Record record = repository.findById(id)
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException(
-                                    "Record not found"
-                            ));
+        return ResponseEntity.ok(
+                Map.of("records", records)
+        );
+    }
 
-            verifyRecordOwner(record, userId);
+    @PostMapping("/confirm")
+    public ResponseEntity<List<RecordDTO>> confirm(
+            @Valid @RequestBody ConfirmRequest request,
+            HttpServletRequest httpRequest) {
 
-            if (image.isEmpty()) {
-                throw new RuntimeException("Image is empty");
-            }
+        List<RecordDTO> savedRecords =
+                recordService.confirmRecords(
+                        request,
+                        (Long) httpRequest.getAttribute("userId")
+                );
 
-            String contentType = image.getContentType();
-
-            if (contentType == null ||
-                    !contentType.startsWith("image/")) {
-
-                throw new RuntimeException("Invalid file type");
-            }
-
-            if (image.getSize() > 10 * 1024 * 1024) {
-                throw new RuntimeException("File too large");
-            }
-
-            System.out.println("RECORD OK");
-
-            // Subir imagen a Cloudinary
-
-            String imageUrl =
-                    cloudinaryService.uploadFile(image);
-
-            System.out.println("IMAGE UPLOADED: " + imageUrl);
-
-            // Crear entidad
-
-            RecordImage recordImage = new RecordImage();
-
-            recordImage.setRecord(record);
-
-            recordImage.setImageUrl(imageUrl);
-
-            System.out.println("ENTITY CREATED");
-
-            // Guardar en PostgreSQL
-
-            RecordImage savedImage =
-                    recordImageRepository.save(recordImage);
-
-            System.out.println("DB SAVED");
-
-            ImageResponse response = new ImageResponse(
-                    savedImage.getId(),
-                    savedImage.getImageUrl()
-            );
-
-            return ResponseEntity
-                    .status(HttpStatus.CREATED)
-                    .body(response);
-
-        } catch (Exception e) {
-
-            e.printStackTrace();
-
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(e.getMessage());
-        }
+        return ResponseEntity.ok(savedRecords);
     }
 
     @GetMapping
-    public List<Record> getAll() {
-        return repository.findAll();
+    public List<RecordDTO> getAll(HttpServletRequest httpRequest) {
+        return recordService.getAllRecords(
+                (Long) httpRequest.getAttribute("userId")
+        );
     }
 
     @GetMapping("/{id}")
-    public RecordDTO getById(@PathVariable Long id) {
+    public RecordDTO getById(
+            @PathVariable Long id,
+            HttpServletRequest httpRequest) {
 
-        Record record = repository.findById(id)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Record not found"));
-
-        return new RecordDTO(record);
+        return recordService.getRecordById(
+                id,
+                (Long) httpRequest.getAttribute("userId")
+        );
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(
             @PathVariable Long id,
-            HttpServletRequest httpRequest
-    ) {
+            HttpServletRequest httpRequest) {
 
         Long userId =
                 (Long) httpRequest.getAttribute("userId");
 
-        if (userId == null) {
-
-            throw new RuntimeException(
-                    "No autenticado"
-            );
-        }
-
-        Record record = repository.findById(id)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Record not found"
-                        )
-                );
-
-        verifyRecordOwner(record, userId);
-
-        repository.delete(record);
+        recordService.deleteRecord(id, userId);
 
         return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> update(@PathVariable Long id,
-                                    @Valid @RequestBody Record newRecord,
-                                    BindingResult result,
-                                    HttpServletRequest httpRequest
-    ){
-        //1. Validación
-        if (result.hasErrors()) {
-            Map<String, String> errors = new HashMap<>();
-            for (FieldError error : result.getFieldErrors()) {
-                errors.put(error.getField(), error.getDefaultMessage());
-            }
-            return ResponseEntity.badRequest().body(errors);
-        }
+    public ResponseEntity<RecordDTO> update(
+            @PathVariable Long id,
+            @Valid @RequestBody RecordDTO newRecord,
+            HttpServletRequest httpRequest) {
 
-        //Usuario autenticado
         Long userId =
                 (Long) httpRequest.getAttribute("userId");
 
-        if (userId == null) {
+        RecordDTO updated =
+                recordService.updateRecord(
+                        id,
+                        newRecord,
+                        userId
+                );
 
-            throw new RuntimeException(
-                    "No autenticado"
-            );
-        }
-        //2. Buscar existente (o devolver 404)
-        Record existing = repository.findById(id)
-                        .orElseThrow(()-> new ResourceNotFoundException("Record not found"));
-
-        // Verificar propietario
-        verifyRecordOwner(existing, userId);
-
-        //3. Actualizar campos permitidos
-        existing.setTitle(newRecord.getTitle());
-        existing.setDescription(newRecord.getDescription());
-        existing.setType(newRecord.getType());
-        existing.setStatus(newRecord.getStatus());
-        existing.setProjectId(newRecord.getProjectId());
-
-        //4. Guardar
-        Record updated = repository.save(existing);
-
-        //5. Respuesta
         return ResponseEntity.ok(updated);
     }
 
     @PatchMapping("/{id}/status")
-    public RecordDTO updateStatus(
+    public ResponseEntity<RecordDTO> updateStatus(
             @PathVariable Long id,
-            @RequestBody Map<String, String> body
-    ) {
+            @Valid @RequestBody RecordStatusUpdateRequest request,
+            HttpServletRequest httpRequest) {
 
-        return recordService.updateStatus(
+        return ResponseEntity.ok(recordService.updateStatus(
                 id,
-                body.get("status")
-        );
+                request.getStatus(),
+                (Long) httpRequest.getAttribute("userId")
+        ));
     }
+
+    // IMAGES
 
     @GetMapping("/{id}/images")
-    public ResponseEntity<List<RecordImage>> getImages(
-            @PathVariable Long id
-    ) {
-
-        Record record = repository.findById(id)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Record not found"
-                        ));
-
-        System.out.println(
-                "IMAGES COUNT: "
-                        + record.getImages().size()
-        );
-
-        for (RecordImage image : record.getImages()) {
-            System.out.println(
-                    "IMAGE ID: " + image.getId()
-            );
-        }
+    public ResponseEntity<List<ImageResponse>> getImages(
+            @PathVariable Long id,
+            HttpServletRequest httpRequest) {
 
         return ResponseEntity.ok(
-                record.getImages()
+                recordService.getRecordImages(
+                        id,
+                        (Long) httpRequest.getAttribute("userId")
+                ).stream().map(image -> new ImageResponse(image.getId(), image.getImageUrl())).toList()
         );
     }
-    /*@GetMapping("/{id}/images")
-    public ResponseEntity<List<RecordImage>> getImages(
-            @PathVariable Long id
-    ) {
 
-        Record record = repository.findById(id)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Record not found"
-                        ));
-
-        return ResponseEntity.ok(
-                record.getImages()
-        );
-    }*/
-    @DeleteMapping("/images/{imageId}")
-    public ResponseEntity<Void> deleteImage(
-            @PathVariable Long imageId,
-            HttpServletRequest httpRequest
-    ) {
+    @PostMapping("/{id}/images")
+    public ResponseEntity<ImageResponse> addImage(
+            @PathVariable Long id,
+            @RequestParam("image") MultipartFile image,
+            HttpServletRequest httpRequest) {
 
         Long userId =
                 (Long) httpRequest.getAttribute("userId");
 
-        if (userId == null) {
-            throw new RuntimeException("No autenticado");
-        }
+        ImageResponse response =
+                recordService.addImage(id, image, userId);
 
-        RecordImage image = recordImageRepository.findById(imageId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException(
-                                "Image not found"
-                        ));
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(response);
+    }
 
-        Record record = image.getRecord();
+    @DeleteMapping("/images/{imageId}")
+    public ResponseEntity<Void> deleteImage(
+            @PathVariable Long imageId,
+            HttpServletRequest httpRequest) {
 
-        verifyRecordOwner(record, userId);
+        Long userId =
+                (Long) httpRequest.getAttribute("userId");
 
-        record.getImages().remove(image);
-
-        System.out.println(
-                "IMAGES AFTER DELETE: "
-                        + record.getImages().size()
-        );
-
-        repository.save(record);
+        recordService.deleteImage(imageId, userId);
 
         return ResponseEntity.noContent().build();
     }
-
-    private void verifyRecordOwner(
-            Record record,
-            Long userId
-    ) {
-
-        if (record.getCreatedBy() == null ||
-                !record.getCreatedBy()
-                        .getId()
-                        .equals(userId)) {
-
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "Solo el creador puede modificar este registro"
-            );
-        }
-    }
-
-    private void verifyProjectMember(
-            Project project,
-            Long userId
-    ) {
-
-        boolean isMember = project.getUsers()
-                .stream()
-                .anyMatch(user ->
-                        user.getId().equals(userId)
-                );
-
-        if (!isMember) {
-
-            throw new ResponseStatusException(
-                    HttpStatus.FORBIDDEN,
-                    "No tienes acceso a este proyecto"
-            );
-        }
-    }
-
 }

@@ -7,5 +7,5 @@ import java.util.List;
 
 public interface RecordImageRepository extends JpaRepository<RecordImage, Long> {
 
-    List<RecordImage> findByRecordId(Long recordId);
+    List<RecordImage> findByRecord_IdOrderByCreatedAtAsc(Long recordId);
 }

@@ -1,14 +1,19 @@
 package com.example.demo.filter;
 
 import com.example.demo.service.JwtService;
-import jakarta.servlet.*;
+import io.jsonwebtoken.JwtException;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.stereotype.Component;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.List;
 
-@Component
-public class JwtFilter implements Filter {
+public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
 
@@ -17,21 +22,26 @@ public class JwtFilter implements Filter {
     }
 
     @Override
-    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws IOException, ServletException {
 
-        HttpServletRequest req = (HttpServletRequest) request;
+        String header = request.getHeader("Authorization");
 
-        String header = req.getHeader("Authorization");
+        if (header != null) {
+            if (!header.startsWith("Bearer ") || header.length() == "Bearer ".length()) {
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid JWT token");
+                return;
+            }
 
-        if(header != null && header.startsWith("Bearer ")){
-            String token = header.substring(7);
-
-            if(jwtService.isValid(token)){
-                Long userId = jwtService.extractUserId(token);
-
-                // Aquí podrías guardar el userId en contexto (opcional por ahora)
-                req.setAttribute("userId", userId);
+            try {
+                Long userId = jwtService.extractUserId(header.substring(7));
+                request.setAttribute("userId", userId);
+                SecurityContextHolder.getContext().setAuthentication(
+                        new UsernamePasswordAuthenticationToken(userId, null, List.of())
+                );
+            } catch (JwtException | IllegalArgumentException exception) {
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid JWT token");
+                return;
             }
         }
 

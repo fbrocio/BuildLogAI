@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 
 import java.security.Key;
 import java.util.Date;
+import java.nio.charset.StandardCharsets;
+import jakarta.annotation.PostConstruct;
 
 @Service
 public class JwtService {
@@ -17,9 +19,15 @@ public class JwtService {
     @Value("${jwt.expiration}")
     private long expiration;
 
+    @PostConstruct
+    void validateSecret() {
+        if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalStateException("JWT_SECRET must be configured and contain at least 32 bytes");
+        }
+    }
 
     private Key getKey(){
-        return Keys.hmacShaKeyFor(secret.getBytes());
+        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
     public String generateToken(Long userId){

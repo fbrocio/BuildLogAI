@@ -1,11 +1,14 @@
 package com.example.demo.dto;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 /*
 DTO - Data Transfer Object
  */
 public class UserRequest {
-    String name;
-    String email;
-    String password; //¿String u otro tipo de dato?
+    @NotBlank @Size(max = 120) String name;
+    @NotBlank @Email @Size(max = 254) String email;
+    @NotBlank @Size(min = 8, max = 72) String password;
 
     public String getName(){
         return name;

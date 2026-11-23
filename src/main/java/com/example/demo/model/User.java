@@ -1,6 +1,7 @@
 package com.example.demo.model;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
@@ -23,6 +24,8 @@ public class User {
     private boolean verified = false;
     private String verificationCode;
     private LocalDateTime verificationCodeExpiry;
+    private int verificationAttempts;
+    private LocalDateTime verificationLastSentAt;
 
     @PrePersist
     protected void onCreate() {
@@ -56,6 +59,7 @@ public class User {
         this.email = email;
     }
 
+    @JsonIgnore
     public String getPassword() {
         return password;
     }
@@ -80,6 +84,7 @@ public class User {
         this.verified = verified;
     }
 
+    @JsonIgnore
     public String getVerificationCode() {
         return verificationCode;
     }
@@ -88,6 +93,7 @@ public class User {
         this.verificationCode = verificationCode;
     }
 
+    @JsonIgnore
     public LocalDateTime getVerificationCodeExpiry() {
         return verificationCodeExpiry;
     }
@@ -95,4 +101,9 @@ public class User {
     public void setVerificationCodeExpiry(LocalDateTime verificationCodeExpiry) {
         this.verificationCodeExpiry = verificationCodeExpiry;
     }
+
+    public int getVerificationAttempts() { return verificationAttempts; }
+    public void setVerificationAttempts(int verificationAttempts) { this.verificationAttempts = verificationAttempts; }
+    public LocalDateTime getVerificationLastSentAt() { return verificationLastSentAt; }
+    public void setVerificationLastSentAt(LocalDateTime verificationLastSentAt) { this.verificationLastSentAt = verificationLastSentAt; }
 }

@@ -2,6 +2,7 @@ package com.example.demo.service;
 
 import com.example.demo.dto.AIResponse;
 import com.example.demo.dto.RecordDTO;
+import com.example.demo.exception.AIServiceException;
 import com.example.demo.model.Record;
 import com.example.demo.model.RecordStatus;
 import com.example.demo.model.RecordType;
@@ -31,7 +32,7 @@ public class AIService {
         this.objectMapper = objectMapper;
     }
 
-    // MÉTODO PRINCIPAL (usa AIResponse correctamente)
+    // METODO PRINCIPAL (usa AIResponse correctamente)
     public List<Record> generateRecordsFromText(String text, Long projectId) {
 
         AIResponse aiResponse = processAIResponse(text);
@@ -43,7 +44,6 @@ public class AIService {
             record.setDescription(dto.getDescription());
             record.setType(dto.getType());
             record.setStatus(dto.getStatus());
-            record.setProjectId(projectId);
             record.setStructuredData(
 
                     objectMapper.convertValue(
@@ -72,10 +72,7 @@ public class AIService {
         try {
             String prompt =buildRecordPrompt(text);
             String rawResponse = callGemini(prompt);
-            System.out.println("RAW IA:\n" + rawResponse);   // ← clave
-
             String clean = cleanJson(rawResponse);
-            System.out.println("CLEAN JSON:\n" + clean);     // ← clave
 
             AIResponse response = objectMapper.readValue(clean, AIResponse.class);
 
@@ -83,8 +80,7 @@ public class AIService {
             return response;
 
         } catch (Exception e) {
-            e.printStackTrace(); // ← para ver el error real en consola
-            throw new RuntimeException("Error procesando respuesta de IA", e);
+            throw new AIServiceException("Error procesando respuesta de IA", e);
         }
     }
 

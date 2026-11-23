@@ -8,9 +8,13 @@ import java.util.List;
 
 public interface RecordRepository extends JpaRepository<Record, Long> {
 
-    List<Record> findByProjectIdOrderByCreatedAtDesc(Long projectId);
-    List<Record> findByTitleContainingIgnoreCase(String title);
-    List<Record> findByCreatedAtBetween(
+    List<Record> findByProject_IdOrderByCreatedAtDesc(Long projectId);
+    List<Record> findByProject_IdAndTitleContainingIgnoreCase(
+            Long projectId,
+            String title
+    );
+    List<Record> findByProject_IdAndCreatedAtBetween(
+            Long projectId,
             LocalDateTime start,
             LocalDateTime end
     );

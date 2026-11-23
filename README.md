@@ -338,7 +338,7 @@ Authorization: Bearer <token>
 
 ## Imagenes de registros
 
-Permite subir imagenes asociadas a un registro. Los archivos se sirven publicamente desde `/upload/**`.
+Permite subir imagenes asociadas a un registro. Los archivos se almacenan en Cloudinary y la API devuelve su URL segura.
 
 ### Subir imagen
 
@@ -354,10 +354,10 @@ Campo del formulario:
 image=<archivo>
 ```
 
-La respuesta devuelve la URL generada, por ejemplo:
+La respuesta devuelve la URL segura generada, por ejemplo:
 
 ```text
-/upload/records/<uuid>.jpg
+https://res.cloudinary.com/<cloud>/image/upload/<id>.jpg
 ```
 
 ### Listar imagenes de un registro
@@ -508,7 +508,7 @@ informe_<timestamp>.pdf
 ## Notas de desarrollo
 
 - El limite de subida de archivos esta configurado en 10 MB.
-- Los archivos subidos se almacenan en `upload/records` y se exponen desde `/upload/**`.
+- Los archivos subidos se almacenan en Cloudinary; el backend conserva únicamente la URL segura resultante.
 - Algunas rutas usan autenticacion JWT de forma explicita en el controlador, principalmente usuarios, proyectos y registros mutables.
 - La creacion directa y la confirmacion de registros usan el usuario autenticado como autor.
 - El servicio de IA intenta usar `gemini-2.5-flash` y, si falla, `gemini-1.5-flash`.
